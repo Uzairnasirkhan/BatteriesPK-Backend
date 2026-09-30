@@ -4,6 +4,8 @@ const router = express.Router();
 
 const {
   getProfile,
+  getAllUsers,
+  deleteUser,
   updateProfile,
   getAddresses,
   addAddress,
@@ -16,6 +18,8 @@ const { verifyToken } = require("../middleware/authMiddleware");
 
 // Profile
 router.get("/", verifyToken, getProfile);
+router.get("/all", verifyToken, getAllUsers);
+router.delete("/:userId", verifyToken, deleteUser);
 router.put("/", verifyToken, updateProfile);
 
 // Addresses

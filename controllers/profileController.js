@@ -1,4 +1,9 @@
 const User = require("../models/userModel");
+const mongoose = require("mongoose");
+const Order = require("../models/orderModel");
+const Review = require("../models/reviewModel");
+const Cart = require("../models/cartModel");
+const Notification = require("../models/notificationModel");
 
 const profileController = {
   // Get logged-in user's profile
@@ -17,6 +22,75 @@ const profileController = {
       });
     } catch (error) {
       console.error("Get profile error:", error);
+
+      return res.status(500).json({
+        message: "Server error",
+      });
+    }
+  },
+
+  // Get All users (Admin only)
+  getAllUsers: async (req, res) => {
+    try {
+      const users = await User.find().select("-password");
+      return res.status(200).json({ users });
+    } catch (error) {
+      console.error("Get all users error:", error);
+      return res.status(500).json({
+        message: "Server error",
+      });
+    }
+  },
+
+
+  // Delete a user (Admin only)
+  deleteUser: async (req, res) => {
+    // Start a transaction session for atomic execution
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const { userId } = req.params;
+
+      // Fetch user within the session
+      const user = await User.findById(userId).session(session);
+
+      if (!user) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({
+          message: "User not found",
+        });
+      }
+
+      // Delete user-owned records using the same transaction session
+      await Order.deleteMany({ user: userId }, { session });
+      await Review.deleteMany({ user: userId }, { session });
+      await Cart.deleteMany({ user: userId }, { session });
+      await Notification.deleteMany({ user: userId }, { session });
+
+      // Delete the fetched user instance directly (saves 1 extra DB query)
+      await user.deleteOne({ session });
+
+      // Commit all operations together
+      await session.commitTransaction();
+      session.endSession();
+
+      return res.status(200).json({
+        message: "User and related records deleted successfully",
+      });
+    } catch (error) {
+      // Roll back all deletions if any single step fails
+      await session.abortTransaction();
+      session.endSession();
+
+      console.error("Delete user error:", error);
+
+      if (error.name === "CastError") {
+        return res.status(400).json({
+          message: "Invalid user ID format",
+        });
+      }
 
       return res.status(500).json({
         message: "Server error",

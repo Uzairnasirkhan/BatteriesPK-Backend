@@ -171,7 +171,8 @@ const authController = {
       message: "Server error during account deletion",
     });
   }
-  }
+  },
+
 };
 
 module.exports = authController;
