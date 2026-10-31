@@ -1,7 +1,25 @@
-const { Expo } = require("expo-server-sdk");
 const DeviceToken = require("../models/deviceTokenModel");
 
-const expo = new Expo();
+// Dynamically load the ESM-only Expo SDK
+let expoSdkPromise;
+let expoClientPromise;
+
+const getExpoSdk = () => {
+  if (!expoSdkPromise) {
+    expoSdkPromise = import("expo-server-sdk");
+  }
+
+  return expoSdkPromise;
+};
+
+// Reuse one Expo client
+const getExpoClient = async () => {
+  if (!expoClientPromise) {
+    expoClientPromise = getExpoSdk().then(({ Expo }) => new Expo());
+  }
+
+  return expoClientPromise;
+};
 
 const sendPushToUser = async ({
   userId,
@@ -11,14 +29,17 @@ const sendPushToUser = async ({
   marketing = false,
 }) => {
   try {
-   const filter = {
-    user: userId,
-    isActive: true,
-    notificationsEnabled: true,
+    // Load SDK and Expo client
+    const { Expo } = await getExpoSdk();
+    const expo = await getExpoClient();
+
+    const filter = {
+      user: userId,
+      isActive: true,
+      notificationsEnabled: true,
     };
 
-
-    // Promotional notifications only go to opted-in devices.
+    // Promotional notifications only go to opted-in devices
     if (marketing) {
       filter.marketingEnabled = true;
     }
@@ -54,6 +75,11 @@ const sendPushToUser = async ({
       });
     }
 
+    if (!messages.length) {
+      return;
+    }
+
+    // Split messages into Expo-supported chunks
     const chunks = expo.chunkPushNotifications(messages);
 
     for (const chunk of chunks) {
@@ -68,9 +94,7 @@ const sendPushToUser = async ({
               ticket.details
             );
 
-            if (
-              ticket.details?.error === "DeviceNotRegistered"
-            ) {
+            if (ticket.details?.error === "DeviceNotRegistered") {
               const failedMessage = chunk[index];
 
               DeviceToken.updateOne(
@@ -78,9 +102,16 @@ const sendPushToUser = async ({
                   expoPushToken: failedMessage.to,
                 },
                 {
-                  $set: { isActive: false },
+                  $set: {
+                    isActive: false,
+                  },
                 }
-              ).catch(console.error);
+              ).catch((error) => {
+                console.error(
+                  "Failed to deactivate invalid device:",
+                  error
+                );
+              });
             }
           }
         });

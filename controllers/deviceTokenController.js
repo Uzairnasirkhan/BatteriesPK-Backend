@@ -1,5 +1,15 @@
-const { Expo } = require("expo-server-sdk");
 const DeviceToken = require("../models/deviceTokenModel");
+
+// Dynamically load the ESM-only Expo SDK
+let expoSdkPromise;
+
+const getExpoSdk = () => {
+  if (!expoSdkPromise) {
+    expoSdkPromise = import("expo-server-sdk");
+  }
+
+  return expoSdkPromise;
+};
 
 const deviceTokenController = {
   // Register or update a device
@@ -19,6 +29,9 @@ const deviceTokenController = {
           message: "Expo push token is required",
         });
       }
+
+      // Load Expo SDK dynamically
+      const { Expo } = await getExpoSdk();
 
       if (!Expo.isExpoPushToken(expoPushToken)) {
         return res.status(400).json({
