@@ -37,6 +37,10 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/device-tokens", deviceTokenRoutes);
 
 
+app.get("/", (req, res) => {
+  res.send("Welcome to Batteriespk Store API");
+});
+
 // Starting server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
