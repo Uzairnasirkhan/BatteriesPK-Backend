@@ -10,6 +10,7 @@ const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const deviceTokenRoutes = require("./routes/deviceTokenRoutes");
 const connectDB = require("./config/dbConfig")
 
 
@@ -33,7 +34,7 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/notifications", notificationRoutes);
-
+app.use("/api/device-tokens", deviceTokenRoutes);
 
 
 // Starting server

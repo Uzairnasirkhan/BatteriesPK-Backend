@@ -22,8 +22,20 @@ const notificationSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["order", "general"],
+      enum: [
+        "order",
+        "payment",
+        "product",
+        "promotion",
+        "campaign",
+        "general",
+      ],
       default: "general",
+    },
+
+    data: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
 
     order: {
