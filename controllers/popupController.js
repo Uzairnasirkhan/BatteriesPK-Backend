@@ -47,106 +47,107 @@ const getAdminPopup = async (req, res) => {
   }
 };
 
-// Admin: Create or update the main popup
 const updatePopup = async (req, res) => {
   try {
     const {
       enabled,
       title,
       message,
+      imageUrl,
       buttonText,
       buttonUrl,
       startsAt,
       endsAt,
     } = req.body;
 
-    let popup = await Popup.findOne({ key: "main" });
+    // Get the existing popup configuration
+    let popup = await Popup.findOne();
 
     if (!popup) {
-      popup = new Popup({ key: "main" });
+      // Create the popup for the first time
+      popup = new Popup({
+        enabled,
+        title,
+        message,
+        imageUrl,
+        buttonText,
+        buttonUrl,
+        startsAt: startsAt || null,
+        endsAt: endsAt || null,
+        version: 1,
+      });
+
+      await popup.save();
+
+      return res.status(200).json({
+        message: "Popup created successfully",
+        popup,
+      });
     }
 
-    const parseBoolean = (value, fallback) => {
-      if (value === undefined || value === null || value === "") {
-        return fallback;
-      }
+    // Compare dates safely
+    const normalizeDate = (date) => {
+      if (!date) return null;
 
-      return value === true || value === "true";
+      const parsedDate = new Date(date);
+
+      return isNaN(parsedDate.getTime())
+        ? null
+        : parsedDate.toISOString();
     };
 
-    popup.enabled = parseBoolean(enabled, popup.enabled);
-    popup.title = title ?? popup.title;
-    popup.message = message ?? popup.message;
-    popup.buttonText = buttonText ?? popup.buttonText;
-    popup.buttonUrl = buttonUrl ?? popup.buttonUrl;
+    // Check whether any popup setting has changed
+    const hasChanged =
+      popup.enabled !== (enabled ?? popup.enabled) ||
+      popup.title !== (title ?? popup.title) ||
+      popup.message !== (message ?? popup.message) ||
+      popup.imageUrl !== (imageUrl ?? popup.imageUrl) ||
+      popup.buttonText !== (buttonText ?? popup.buttonText) ||
+      popup.buttonUrl !== (buttonUrl ?? popup.buttonUrl) ||
+      normalizeDate(popup.startsAt) !==
+        normalizeDate(startsAt !== undefined ? startsAt : popup.startsAt) ||
+      normalizeDate(popup.endsAt) !==
+        normalizeDate(endsAt !== undefined ? endsAt : popup.endsAt);
+
+    // Update popup fields
+    if (enabled !== undefined) popup.enabled = enabled;
+    if (title !== undefined) popup.title = title;
+    if (message !== undefined) popup.message = message;
+    if (imageUrl !== undefined) popup.imageUrl = imageUrl;
+    if (buttonText !== undefined) popup.buttonText = buttonText;
+    if (buttonUrl !== undefined) popup.buttonUrl = buttonUrl;
 
     if (startsAt !== undefined) {
-      popup.startsAt = startsAt ? new Date(startsAt) : null;
+      popup.startsAt = startsAt || null;
     }
 
     if (endsAt !== undefined) {
-      popup.endsAt = endsAt ? new Date(endsAt) : null;
+      popup.endsAt = endsAt || null;
     }
 
-    if (
-      popup.startsAt &&
-      Number.isNaN(popup.startsAt.getTime())
-    ) {
-      return res.status(400).json({
-        message: "Invalid popup start date.",
-      });
-    }
-
-    if (
-      popup.endsAt &&
-      Number.isNaN(popup.endsAt.getTime())
-    ) {
-      return res.status(400).json({
-        message: "Invalid popup end date.",
-      });
-    }
-
-    if (
-      popup.startsAt &&
-      popup.endsAt &&
-      popup.endsAt <= popup.startsAt
-    ) {
-      return res.status(400).json({
-        message: "End date must be later than start date.",
-      });
-    }
-
-    if (req.file) {
-      const uploadResult = await uploadToCloudinary(
-        req.file.buffer,
-        "ecommerce/popups"
-      );
-
-      popup.imageUrl = uploadResult.secure_url;
-    }
-
-    // Increment the version only when the configuration changes.
-    // The mobile app can use this to detect a new popup campaign.
-    if (popup.isNew) {
-      popup.version = 1;
-    } else {
-      popup.version = (popup.version || 1) + 1;
+    // Increment version only when configuration changes
+    if (hasChanged) {
+      popup.version = (popup.version || 0) + 1;
     }
 
     await popup.save();
 
     return res.status(200).json({
-      message: "Popup configuration saved successfully.",
+      message: hasChanged
+        ? "Popup updated successfully. Version incremented."
+        : "Popup settings saved. No changes detected.",
       popup,
     });
   } catch (error) {
     console.error("Update popup error:", error);
 
     return res.status(500).json({
-      message: "Failed to save popup configuration.",
+      message: "Failed to update popup",
+      error: error.message,
     });
   }
 };
+
 
 module.exports = {
   getActivePopup,
