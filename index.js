@@ -14,6 +14,8 @@ const reviewRoutes = require("./routes/reviewRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const deviceTokenRoutes = require("./routes/deviceTokenRoutes");
 const notificationCampaignRoutes = require("./routes/notificationCampaignRoutes");
+const bannerRoutes = require("./routes/bannerRoutes");
+const popupRoutes = require("./routes/popupRoutes");
 
 const connectDB = require("./config/dbConfig");
 
@@ -38,6 +40,8 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/device-tokens", deviceTokenRoutes);
 app.use("/api/admin/notifications", notificationCampaignRoutes);
+app.use("/api/banners", bannerRoutes);
+app.use("/api/popup", popupRoutes);
 
 app.get("/", (req, res) => {
   res.send("Welcome to Batteriespk Store API");
